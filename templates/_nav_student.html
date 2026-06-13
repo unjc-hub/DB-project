@@ -1,0 +1,53 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+    <div class="container">
+        <a class="navbar-brand" href="{{ url_for('dashboard') }}">📚 图书馆</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navStudent">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navStudent">
+            <div class="navbar-nav ms-auto align-items-lg-center">
+                <a href="{{ url_for('dashboard') }}" class="nav-link {{ 'active' if request.endpoint == 'dashboard' }}">首页</a>
+                <a href="{{ url_for('books') }}" class="nav-link {{ 'active' if request.endpoint == 'books' }}">图书搜索</a>
+                <a href="{{ url_for('my_borrows') }}" class="nav-link {{ 'active' if request.endpoint == 'my_borrows' }}">当前借阅</a>
+                <a href="{{ url_for('my_reservations') }}" class="nav-link {{ 'active' if request.endpoint == 'my_reservations' }}">我的预约</a>
+                <a href="{{ url_for('my_history') }}" class="nav-link {{ 'active' if request.endpoint == 'my_history' }}">借阅历史</a>
+                <a href="{{ url_for('my_notifications') }}" class="nav-link {{ 'active' if request.endpoint == 'my_notifications' }}">通知</a>
+                <a href="{{ url_for('profile') }}" class="nav-link {{ 'active' if request.endpoint == 'profile' }}">个人中心</a>
+                <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm ms-lg-2">退出</a>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- 通用结果弹窗 -->
+<div class="modal fade" id="resultModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content text-center border-0 shadow">
+            <div class="modal-body py-4">
+                <div class="fs-1 mb-2" id="resultIcon">✅</div>
+                <h5 id="resultMsg">操作成功</h5>
+            </div>
+            <div class="modal-footer border-0 justify-content-center">
+                <button type="button" class="btn btn-primary px-4 rounded-pill" data-bs-dismiss="modal">确定</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+window.showResult = function(ok, msg) {
+    document.getElementById('resultIcon').textContent = ok ? '✅' : '❌';
+    document.getElementById('resultMsg').textContent = msg;
+    document.getElementById('resultMsg').className = ok ? 'text-success' : 'text-danger';
+    new bootstrap.Modal(document.getElementById('resultModal')).show();
+};
+(function() {
+    var alerts = document.querySelectorAll('.alert');
+    alerts.forEach(function(a) {
+        var t = a.textContent.trim();
+        if (t.startsWith('_popup:')) {
+            showResult(true, t.substring(7));
+            a.remove();
+        }
+    });
+})();
+</script>

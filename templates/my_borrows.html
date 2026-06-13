@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>当前借阅</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body style="padding-top:70px">
+    {% include '_nav_student.html' %}
+
+    <div class="container mt-4">
+        <h2 class="mb-3">当前借阅</h2>
+
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            {% for message in messages %}
+              <div class="alert alert-info alert-dismissible fade show py-2">{{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        {% if borrows %}
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-primary">
+                            <tr><th>书名</th><th>条码</th><th>借阅日期</th><th>应还日期</th><th>状态</th><th>操作</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for b in borrows %}
+                            <tr class="{{ 'table-danger' if b.due_date and b.due_date < now else '' }}">
+                                <td>
+                                    <strong>{{ b.title }}</strong>
+                                    <br><small class="text-muted">{{ b.isbn }}</small>
+                                </td>
+                                <td><code>{{ b.barcode }}</code></td>
+                                <td>{{ b.borrow_date }}</td>
+                                <td>{{ b.due_date }}</td>
+                                <td>
+                                    {% if b.due_date and b.due_date < now %}
+                                    <span class="badge bg-danger">已逾期</span>
+                                    {% else %}
+                                    <span class="badge bg-success">正常</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="showRenewModal({{ b.id }}, `{{ b.title }}`, `{{ b.due_date }}`)">续借</button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-light border">暂无借阅记录，<a href="{{ url_for('books') }}">去搜索图书</a></div>
+        {% endif %}
+    </div>
+
+    <!-- 续借确认弹窗 -->
+    <div class="modal fade" id="renewModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title">确认续借</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>您即将续借图书：<strong id="renewBookTitle"></strong></p>
+                    <div class="row text-center mb-3">
+                        <div class="col-6">
+                            <small class="text-muted">当前应还日期</small>
+                            <div class="fw-bold" id="renewOldDue"></div>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">续借后应还日期</small>
+                            <div class="fw-bold text-success" id="renewNewDue"></div>
+                        </div>
+                    </div>
+                    <div class="alert alert-warning py-2 small mb-0">
+                        ⚠️ 续借仅限未被他人预约的图书，每本最多续借 2 次，每次延长 30 天
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="btnRenewConfirm">确认续借</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const renewModal = new bootstrap.Modal(document.getElementById('renewModal'));
+        let currentBorrowId = null;
+        function showRenewModal(borrowId, title, oldDue) {
+            currentBorrowId = borrowId;
+            document.getElementById('renewBookTitle').textContent = title;
+            document.getElementById('renewOldDue').textContent = oldDue;
+            // 基于当前到期日计算续借后日期
+            var d = new Date(oldDue + 'T00:00:00');
+            d.setDate(d.getDate() + 30);
+            document.getElementById('renewNewDue').textContent = d.toISOString().split('T')[0];
+            renewModal.show();
+        }
+        document.getElementById('btnRenewConfirm').addEventListener('click', function() {
+            if (!currentBorrowId) return;
+            this.disabled = true; this.textContent = '处理中...';
+            fetch('/renew/' + currentBorrowId, { method: 'POST', credentials: 'same-origin', headers: {'X-Requested-With':'XMLHttpRequest'} })
+            .then(r => r.json())
+            .then(data => {
+                renewModal.hide();
+                if (data.ok) {
+                    showResult(true, '续借成功，新的归还日期：' + data.new_due);
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showResult(false, data.error || '续借失败');
+                }
+            })
+            .catch(() => { renewModal.hide(); showResult(false, '网络错误'); })
+            .finally(() => { this.disabled = false; this.textContent = '确认续借'; });
+        });
+    </script>
+</body>
+</html>

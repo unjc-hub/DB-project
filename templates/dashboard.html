@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学生主页 - 图书馆</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body style="padding-top:70px">
+    {% include '_nav_student.html' %}
+
+    <div class="container mt-4">
+        <h2>我的图书馆</h2>
+
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            {% for message in messages %}
+              <div class="alert alert-info alert-dismissible fade show">{{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <div class="row mt-4">
+            <div class="col-md-3 mb-3">
+                <a href="{{ url_for('books') }}" class="text-decoration-none">
+                    <div class="card text-center h-100 border-primary">
+                        <div class="card-body">
+                            <div class="fs-1 mb-2">📚</div>
+                            <h5>图书搜索</h5>
+                            <p class="text-muted small">搜索、筛选所有图书</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-3 mb-3">
+                <a href="{{ url_for('my_borrows') }}" class="text-decoration-none">
+                    <div class="card text-center h-100 border-success">
+                        <div class="card-body">
+                            <div class="fs-1 mb-2">📖</div>
+                            <h5>当前借阅</h5>
+                            <p class="text-muted small">查看当前借阅记录</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-3 mb-3">
+                <a href="{{ url_for('my_reservations') }}" class="text-decoration-none">
+                    <div class="card text-center h-100 border-warning">
+                        <div class="card-body">
+                            <div class="fs-1 mb-2">📌</div>
+                            <h5>我的预约</h5>
+                            <p class="text-muted small">管理预约排队</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-3 mb-3">
+                <a href="{{ url_for('my_history') }}" class="text-decoration-none">
+                    <div class="card text-center h-100 border-secondary">
+                        <div class="card-body">
+                            <div class="fs-1 mb-2">📋</div>
+                            <h5>借阅历史</h5>
+                            <p class="text-muted small">查看已归还记录</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

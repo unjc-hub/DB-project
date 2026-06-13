@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人信息 - 图书馆</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css" rel="stylesheet">
+    <style>
+        body { background: #f5f7fb; }
+        .profile-header {
+            background: linear-gradient(135deg, #0d6efd 0%, #6610f2 100%);
+            color: white; padding: 2.5rem 0 2rem;
+        }
+        .avatar-upload { position: relative; display: inline-block; cursor: pointer; }
+        .avatar-upload img, .avatar-placeholder {
+            width: 110px; height: 110px; border-radius: 50%; object-fit: cover;
+            border: 4px solid rgba(255,255,255,0.4); transition: all 0.3s;
+        }
+        .avatar-upload:hover img, .avatar-upload:hover .avatar-placeholder {
+            border-color: #fff; transform: scale(1.05);
+        }
+        .avatar-placeholder {
+            background: rgba(255,255,255,0.15); display: flex; align-items: center;
+            justify-content: center; font-size: 44px; color: rgba(255,255,255,0.7);
+        }
+        .avatar-upload input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+        .stat-card { border-radius: 16px; border: none; transition: all 0.2s; }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
+        .stat-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+        .info-card { border: none; border-radius: 16px; }
+        .info-item { padding: 0.75rem 0; border-bottom: 1px solid #f0f0f0; }
+        .info-item:last-child { border-bottom: none; }
+        .borrow-bar { height: 8px; border-radius: 4px; }
+        .status-badge { font-size: 0.85rem; padding: 0.3em 0.8em; }
+        .camera-icon { transition: transform 0.2s; }
+        .avatar-upload:hover .camera-icon { transform: scale(1.15); }
+        /* 圆形裁剪框 */
+        .cropper-view-box, .cropper-face { border-radius: 50%; }
+    </style>
+</head>
+<body style="padding-top:70px">
+    {% if session.get('role') == 'student' %}
+        {% include '_nav_student.html' %}
+    {% else %}
+        {% include '_nav_admin.html' %}
+    {% endif %}
+
+    <!-- 顶部头像区 -->
+    <div class="profile-header text-center mb-4">
+        <label class="avatar-upload" onclick="document.getElementById('avatarInput').click()">
+            {% if user.avatar or session.get('avatar') %}
+            <img src="{{ user.avatar or session.avatar }}" alt="avatar" id="avatarPreview">
+            {% else %}
+            <div class="avatar-placeholder" id="avatarPreview">{{ user.name[0] if user.name else '?' }}</div>
+            {% endif %}
+            <div class="position-absolute bottom-0 end-0 bg-white rounded-circle p-1 shadow-sm camera-icon" style="width:28px;height:28px;line-height:16px;font-size:14px;">📷</div>
+        </label>
+        <h3 class="mt-2 mb-0">{{ user.name }}</h3>
+        <p class="opacity-75 mb-0">
+            {% if session.get('role') == 'student' %}
+            学号: {{ user.student_no }}
+            {% if user.status == 'suspended' %}<span class="badge bg-danger ms-2 status-badge">已停用</span>{% endif %}
+            {% else %}
+            @{{ user.username }} &middot; {{ '管理员' if user.role == 'superadmin' else '图书管理员' }}
+            {% endif %}
+        </p>
+    </div>
+
+    <!-- 头像裁剪弹窗 -->
+    <div class="modal fade" id="cropModal" tabindex="-1" data-bs-backdrop="static" data-upload-url="{{ url_for('upload_avatar') }}">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title">裁剪头像 — 拖动调整圆形选区</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center p-0">
+                    <img id="cropImage" style="max-height:60vh;display:none;">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="cropSaveBtn">确认裁剪</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <input type="file" id="avatarInput" accept="image/*" style="display:none">
+
+    <div class="container mb-5">
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            {% for message in messages %}
+              <div class="alert alert-info alert-dismissible fade show">{{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        {% if session.get('role') == 'student' %}
+        <!-- ============ 学生统计卡片 ============ -->
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-lg-3">
+                <div class="card stat-card shadow-sm h-100">
+                    <div class="card-body d-flex align-items-center gap-3 py-3">
+                        <div class="stat-icon bg-primary bg-opacity-10 text-primary">📚</div>
+                        <div>
+                            <div class="fs-4 fw-bold text-primary">{{ user.total_borrows }}</div>
+                            <small class="text-muted">累计借阅</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card stat-card shadow-sm h-100">
+                    <div class="card-body d-flex align-items-center gap-3 py-3">
+                        <div class="stat-icon bg-success bg-opacity-10 text-success">📖</div>
+                        <div>
+                            <div class="fs-4 fw-bold text-success">{{ user.current_borrows }}</div>
+                            <small class="text-muted">当前在借</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card stat-card shadow-sm h-100">
+                    <div class="card-body d-flex align-items-center gap-3 py-3">
+                        <div class="stat-icon bg-info bg-opacity-10 text-info">📊</div>
+                        <div>
+                            <div class="fs-4 fw-bold text-info">{{ user.max_borrow_limit }}</div>
+                            <small class="text-muted">借阅上限</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card stat-card shadow-sm h-100">
+                    <div class="card-body d-flex align-items-center gap-3 py-3">
+                        <div class="stat-icon bg-danger bg-opacity-10 text-danger">💰</div>
+                        <div>
+                            <div class="fs-4 fw-bold text-danger">¥{{ "%.2f"|format(user.unpaid_fines) }}</div>
+                            <small class="text-muted">未缴罚款</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ 学生详细信息 ============ -->
+        <div class="row g-4">
+            <!-- 左栏：基本信息 -->
+            <div class="col-lg-7">
+                <div class="card info-card shadow-sm mb-4">
+                    <div class="card-header bg-white border-bottom py-3">
+                        <h5 class="mb-0 fw-bold">📋 基本信息</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="row g-0">
+                            <div class="col-sm-6 info-item px-4">
+                                <small class="text-muted">学号</small>
+                                <div class="fw-semibold">{{ user.student_no }}</div>
+                            </div>
+                            <div class="col-sm-6 info-item px-4">
+                                <small class="text-muted">姓名</small>
+                                <div class="fw-semibold">{{ user.name }}</div>
+                            </div>
+                            <div class="col-sm-6 info-item px-4">
+                                <small class="text-muted">入校时间</small>
+                                <div class="fw-semibold">{{ user.enrollment_date or '未设置' }}</div>
+                            </div>
+                            <div class="col-sm-6 info-item px-4">
+                                <small class="text-muted">毕业时间</small>
+                                <div class="fw-semibold">{{ user.graduation_date or '未设置' }}</div>
+                            </div>
+                            <div class="col-sm-6 info-item px-4">
+                                <small class="text-muted">账号状态</small>
+                                <div>
+                                    <span class="badge rounded-pill bg-{{ 'success' if user.status == 'active' else 'danger' }}">
+                                        {{ '正常' if user.status == 'active' else '已停用' }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="col-sm-6 info-item px-4">
+                                <small class="text-muted">最大借阅</small>
+                                <div class="fw-semibold">{{ user.max_borrow_limit }} 册</div>
+                            </div>
+                            <div class="col-sm-6 info-item px-4">
+                                <small class="text-muted">注册时间</small>
+                                <div class="fw-semibold">{{ user.created_at }}</div>
+                            </div>
+                            <div class="col-sm-6 info-item px-4">
+                                <small class="text-muted">电话</small>
+                                <div class="fw-semibold">{{ user.phone or '未设置' }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右栏：联系信息 + 借阅概览 -->
+            <div class="col-lg-5">
+                <div class="card info-card shadow-sm mb-4">
+                    <div class="card-header bg-white border-bottom py-3">
+                        <h5 class="mb-0 fw-bold">✏️ 联系信息</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST">
+                            <div class="mb-3">
+                                <label class="form-label small text-muted">邮箱</label>
+                                <input type="email" name="email" class="form-control" value="{{ user.email or '' }}" placeholder="请输入邮箱">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small text-muted">电话</label>
+                                <input type="text" name="phone" class="form-control" value="{{ user.phone or '' }}" placeholder="请输入电话">
+                            </div>
+                            <input type="hidden" name="action" value="info">
+                            <button type="submit" class="btn btn-primary w-100 rounded-pill">保存修改</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 修改密码 -->
+                <div class="card info-card shadow-sm mb-4">
+                    <div class="card-header bg-white border-bottom py-3">
+                        <h5 class="mb-0 fw-bold">🔒 修改密码</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST">
+                            <input type="hidden" name="action" value="password">
+                            <div class="mb-3">
+                                <label class="form-label small text-muted">当前密码</label>
+                                <input type="password" name="old_password" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small text-muted">新密码（至少6位）</label>
+                                <input type="password" name="new_password" class="form-control" required minlength="6">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small text-muted">确认新密码</label>
+                                <input type="password" name="confirm_password" class="form-control" required>
+                            </div>
+                            <button type="submit" class="btn btn-warning w-100 rounded-pill">修改密码</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card info-card shadow-sm">
+                    <div class="card-header bg-white border-bottom py-3">
+                        <h5 class="mb-0 fw-bold">📊 借阅概览</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-3">
+                            <span class="text-muted">借阅进度</span>
+                            <strong>{{ user.current_borrows }} / {{ user.max_borrow_limit }}</strong>
+                        </div>
+                        <div class="progress borrow-bar mb-4">
+                            {% set pct = (user.current_borrows / user.max_borrow_limit * 100) if user.max_borrow_limit > 0 else 0 %}
+                            {% set pct_int = pct|int %}
+                            <div class="progress-bar bg-{{ 'danger' if pct_int >= 80 else 'success' if pct_int < 50 else 'warning' }}" 
+                                 style="width:{{ pct_int }}%"></div>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <small class="text-muted">累计借阅</small><strong>{{ user.total_borrows }} 册</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <small class="text-muted">未缴罚款</small>
+                            <strong class="text-danger">¥{{ "%.2f"|format(user.unpaid_fines) }}</strong>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">可借余额</small>
+                            <strong class="text-success fs-5">{{ user.available_borrows }} 册</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% else %}
+        <!-- ============ 管理员信息 ============ -->
+        <div class="row justify-content-center">
+            <div class="col-lg-6">
+                <div class="card info-card shadow-sm mb-4">
+                    <div class="card-header bg-white border-bottom py-3">
+                        <h5 class="mb-0 fw-bold">📋 管理员信息</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="row g-0">
+                            <div class="col-sm-6 info-item px-4">
+                                <small class="text-muted">用户名</small>
+                                <div class="fw-semibold">@{{ user.username }}</div>
+                            </div>
+                            <div class="col-sm-6 info-item px-4">
+                                <small class="text-muted">姓名</small>
+                                <div class="fw-semibold">{{ user.name }}</div>
+                            </div>
+                            <div class="col-sm-6 info-item px-4">
+                                <small class="text-muted">角色</small>
+                                <div>
+                                    <span class="badge rounded-pill bg-{{ 'warning' if user.role == 'superadmin' else 'primary' }}">
+                                        {{ '管理员' if user.role == 'superadmin' else '图书管理员' }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="col-sm-6 info-item px-4">
+                                <small class="text-muted">操作记录</small>
+                                <div class="fw-semibold">{{ user.total_actions }} 次</div>
+                            </div>
+                            <div class="col-12 info-item px-4">
+                                <small class="text-muted">注册时间</small>
+                                <div class="fw-semibold">{{ user.created_at }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card info-card shadow-sm">
+                    <div class="card-header bg-white border-bottom py-3">
+                        <h5 class="mb-0 fw-bold">✏️ 联系信息</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST">
+                            <div class="mb-3">
+                                <label class="form-label small text-muted">邮箱</label>
+                                <input type="email" name="email" class="form-control" value="{{ user.email or '' }}" placeholder="请输入邮箱">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small text-muted">电话</label>
+                                <input type="text" name="phone" class="form-control" value="{{ user.phone or '' }}" placeholder="请输入电话">
+                            </div>
+                            <input type="hidden" name="action" value="info">
+                            <button type="submit" class="btn btn-primary w-100 rounded-pill">保存修改</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card info-card shadow-sm mt-4">
+                    <div class="card-header bg-white border-bottom py-3">
+                        <h5 class="mb-0 fw-bold">🔒 修改密码</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST">
+                            <input type="hidden" name="action" value="password">
+                            <div class="mb-3">
+                                <label class="form-label small text-muted">当前密码</label>
+                                <input type="password" name="old_password" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small text-muted">新密码（至少6位）</label>
+                                <input type="password" name="new_password" class="form-control" required minlength="6">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small text-muted">确认新密码</label>
+                                <input type="password" name="confirm_password" class="form-control" required>
+                            </div>
+                            <button type="submit" class="btn btn-warning w-100 rounded-pill">修改密码</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>
+    <script>
+    (function() {
+        const input = document.getElementById('avatarInput');
+        const cropImage = document.getElementById('cropImage');
+        const cropModalEl = document.getElementById('cropModal');
+        const cropModal = new bootstrap.Modal(cropModalEl);
+        const uploadUrl = cropModalEl.dataset.uploadUrl;
+        const saveBtn = document.getElementById('cropSaveBtn');
+        let cropper = null;
+        let modalOpen = false;
+
+        function destroyCropper() {
+            if (cropper) { cropper.destroy(); cropper = null; }
+        }
+
+        // 防止 change 事件重复触发
+        input.addEventListener('change', function() {
+            const file = input.files[0];
+            if (!file) return;
+            if (file.size > 2 * 1024 * 1024) { alert('图片不能超过2MB'); input.value = ''; return; }
+
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                cropImage.src = ev.target.result;
+                cropModal.show();
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // 弹窗完全显示后才初始化 Cropper
+        cropModalEl.addEventListener('shown.bs.modal', function() {
+            if (modalOpen) return;
+            modalOpen = true;
+            destroyCropper();
+            cropImage.style.display = 'block';
+            cropper = new Cropper(cropImage, {
+                aspectRatio: 1,
+                viewMode: 1,
+                autoCropArea: 1,
+                guides: true,
+                background: false,
+                movable: true,
+                zoomable: true,
+                rotatable: false,
+                scalable: false,
+            });
+        });
+
+        cropModalEl.addEventListener('hidden.bs.modal', function() {
+            modalOpen = false;
+            destroyCropper();
+            cropImage.style.display = 'none';
+            input.value = '';
+        });
+
+        saveBtn.addEventListener('click', function() {
+            if (!cropper) { alert('裁剪器未就绪，请关闭重试'); return; }
+            saveBtn.disabled = true;
+            saveBtn.textContent = '上传中...';
+
+            var dataUrl = cropper.getCroppedCanvas({ width: 300, height: 300 }).toDataURL('image/png');
+
+            fetch(uploadUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ image: dataUrl })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                saveBtn.disabled = false;
+                saveBtn.textContent = '确认裁剪';
+                if (data.ok) {
+                    // 更新页面上的头像预览
+                    var avatarContainer = document.querySelector('.avatar-upload');
+                    var existingImg = avatarContainer.querySelector('img');
+                    var newUrl = data.url + '?t=' + Date.now();
+                    
+                    if (existingImg) {
+                        existingImg.src = newUrl;
+                    } else {
+                        // 占位符 div → 替换为 img
+                        var placeholder = avatarContainer.querySelector('.avatar-placeholder');
+                        if (placeholder) {
+                            var img = document.createElement('img');
+                            img.src = newUrl;
+                            img.alt = 'avatar';
+                            img.id = 'avatarPreview';
+                            img.style.cssText = 'width:110px;height:110px;border-radius:50%;object-fit:cover;border:4px solid rgba(255,255,255,0.4);';
+                            placeholder.replaceWith(img);
+                        }
+                    }
+                    // 更新 session 引用（nav 栏头像）
+                    var navAvatars = document.querySelectorAll('.navbar img.rounded-circle');
+                    navAvatars.forEach(function(navImg) {
+                        if (navImg.src && navImg.src.includes('/uploads/avatars/')) {
+                            navImg.src = newUrl;
+                        }
+                    });
+                    cropModal.hide();
+                    destroyCropper();
+                    cropImage.style.display = 'none';
+                } else {
+                    alert('上传失败: ' + (data.error || '未知'));
+                }
+            })
+            .catch(function(err) {
+                saveBtn.disabled = false;
+                saveBtn.textContent = '确认裁剪';
+                alert('上传失败: ' + err.message);
+            });
+        });
+    })();
+    </script>
+
+        saveBtn.addEventListener('click', function() {
+            if (!cropper) { alert('裁剪器未就绪，请关闭重试'); return; }
+            saveBtn.disabled = true;
+            saveBtn.textContent = '上传中...';
+
+            var dataUrl = cropper.getCroppedCanvas({ width: 300, height: 300 }).toDataURL('image/png');
+
+            fetch(uploadUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ image: dataUrl })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                saveBtn.disabled = false;
+                saveBtn.textContent = '确认裁剪';
+                if (data.ok) {
+                    var preview = document.getElementById('avatarPreview');
+                    if (preview && preview.tagName === 'IMG') {
+                        preview.src = data.url + '?t=' + Date.now();
+                    }
+                    cropModal.hide();
+                    destroyCropper();
+                    cropImage.style.display = 'none';
+                } else {
+                    alert('上传失败: ' + (data.error || '未知'));
+                }
+            })
+            .catch(function(err) {
+                saveBtn.disabled = false;
+                saveBtn.textContent = '确认裁剪';
+                alert('上传失败: ' + err.message);
+            });
+        });
+    })();
+    </script>
+</body>
+</html>

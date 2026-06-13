@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图书搜索</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body style="padding-top:70px">
+    {% include '_nav_student.html' %}
+
+    <div class="container mt-4">
+
+        {% if not searched %}
+        <!-- 初始状态：搜索栏居中 -->
+        <div class="row justify-content-center" style="margin-top:15vh;">
+            <div class="col-md-8 col-lg-6 text-center">
+                <h2 class="mb-4">图书搜索</h2>
+                <form method="GET" class="mb-4">
+                    <div class="input-group input-group-lg">
+                        <input type="text" name="q" class="form-control" placeholder="书名 / ISBN / 作者 / 出版社" value="{{ search_query }}" autofocus>
+                        <button type="submit" class="btn btn-primary">🔍 搜索</button>
+                    </div>
+                    <div class="mt-3 text-start">
+                        <details>
+                            <summary class="text-muted small">高级筛选</summary>
+                            <div class="row g-2 mt-2">
+                                <div class="col-sm-6">
+                                    <select name="category_id" class="form-select form-select-sm">
+                                        <option value="">全部分类</option>
+                                        {% for cat in categories %}
+                                        <option value="{{ cat.id }}">{{ cat.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-sm-6">
+                                    <input type="text" name="publisher" class="form-control form-control-sm" placeholder="出版社">
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" name="available" value="1" id="avail">
+                                        <label class="form-check-label small" for="avail">仅可借</label>
+                                    </div>
+                                    <input type="number" name="min_year" class="form-control form-control-sm d-inline w-auto" placeholder="年份≥" style="width:80px;">
+                                    <span class="text-muted">—</span>
+                                    <input type="number" name="max_year" class="form-control form-control-sm d-inline w-auto" placeholder="年份≤" style="width:80px;">
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% else %}
+        <!-- 搜索结果状态 -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="mb-0">图书搜索</h2>
+            <a href="{{ url_for('books') }}" class="btn btn-outline-secondary btn-sm">清空搜索</a>
+        </div>
+
+        <form method="GET" class="row g-2 mb-4 border p-3 bg-light rounded">
+            <div class="col-md-5">
+                <input type="text" name="q" class="form-control" placeholder="书名 / ISBN / 作者 / 出版社" value="{{ search_query }}">
+            </div>
+            <div class="col-md-2">
+                <select name="category_id" class="form-select">
+                    <option value="">全部分类</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}" {{ 'selected' if selected_category == cat.id|string }}>{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <input type="text" name="publisher" class="form-control" placeholder="出版社" value="{{ publisher or '' }}">
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-primary w-100">搜索</button>
+            </div>
+            <div class="col-md-2">
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" name="available" value="1" id="avail2" {{ 'checked' if only_available }}>
+                    <label class="form-check-label small" for="avail2">仅可借</label>
+                </div>
+            </div>
+            <div class="col-12">
+                <input type="number" name="min_year" class="form-control d-inline w-auto form-control-sm" placeholder="出版年 ≥" value="{{ min_year or '' }}">
+                <input type="number" name="max_year" class="form-control d-inline w-auto form-control-sm" placeholder="出版年 ≤" value="{{ max_year or '' }}">
+            </div>
+        </form>
+
+        <h5>搜索结果（{{ books|length }} 本）</h5>
+
+        {% if books %}
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>书名</th><th>作者</th><th>出版社</th><th>出版年</th><th>可借</th><th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for book in books %}
+                <tr>
+                    <td><strong>{{ book.title }}</strong></td>
+                    <td>{{ book.authors or '-' }}</td>
+                    <td>{{ book.publisher_name or '未知' }}</td>
+                    <td>{{ book.publish_year or '-' }}</td>
+                    <td><span class="badge bg-{{ 'success' if book.available_count > 0 else 'secondary' }}">{{ book.available_count }}</span></td>
+                    <td>
+                        {% if book.available_count > 0 %}
+                            <a href="{{ url_for('book_detail', book_id=book.id) }}" class="btn btn-sm btn-success">借阅</a>
+                        {% else %}
+                            <a href="{{ url_for('book_detail', book_id=book.id) }}" class="btn btn-sm btn-outline-secondary me-1">详情</a>
+                            <form method="post" action="{{ url_for('reserve', book_id=book.id) }}" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-warning">预约</button>
+                            </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="alert alert-info">没有找到匹配的图书</div>
+        {% endif %}
+        {% endif %}
+    </div>
+</body>
+</html>

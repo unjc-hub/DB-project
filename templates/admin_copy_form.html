@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>馆藏 {{ '编辑' if edit else '添加' }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body style="padding-top:70px">
+    {% include '_nav_admin.html' %}
+
+    <div class="container mt-4">
+        <h2>{{ '编辑馆藏' if edit else '添加馆藏副本' }}</h2>
+        
+        {% if not edit and book %}
+        <div class="alert alert-secondary">
+            为图书 <strong>{{ book.title }}</strong> (ISBN: {{ book.isbn }}) 添加副本
+        </div>
+        {% endif %}
+
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            {% for message in messages %}
+              <div class="alert alert-info">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form method="POST">
+            {% if not edit %}
+            <div class="mb-3">
+                <label>添加数量</label>
+                <input type="number" name="count" value="1" class="form-control" min="1" max="100" required>
+            </div>
+            <div class="mb-3">
+                <label>条码前缀</label>
+                <input type="text" name="barcode_prefix" class="form-control" placeholder="如 B001C">
+                <small class="text-muted">留空则自动生成: B{book_id}C001, B{book_id}C002...</small>
+            </div>
+            {% endif %}
+
+            {% if edit %}
+            <div class="mb-3">
+                <label>条码</label>
+                <input type="text" name="barcode" value="{{ copy.barcode }}" class="form-control" required>
+            </div>
+            {% endif %}
+
+            <div class="mb-3">
+                <label>馆藏分馆</label>
+                <select name="branch" class="form-select">
+                    <option value="A馆" {{ 'selected' if (copy and copy.branch=='A馆') or (not copy and session.get('branch','')=='A馆') }}>A馆</option>
+                    <option value="B馆" {{ 'selected' if (copy and copy.branch=='B馆') or (not copy and session.get('branch','')=='B馆') }}>B馆</option>
+                    <option value="C馆" {{ 'selected' if (copy and copy.branch=='C馆') or (not copy and session.get('branch','')=='C馆') }}>C馆</option>
+                    <option value="总馆" {{ 'selected' if (copy and copy.branch=='总馆') or (not copy and session.get('branch','') not in ['A馆','B馆','C馆']) }}>总馆</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label>架位</label>
+                <input type="text" name="location" value="{{ copy.location if copy else '' }}" class="form-control" placeholder="如 A区-01架">
+            </div>
+
+            {% if edit %}
+            <div class="mb-3">
+                <label>状态</label>
+                <select name="status" class="form-select">
+                    <option value="available" {{ 'selected' if copy.status=='available' }}>available - 可借</option>
+                    <option value="borrowed" {{ 'selected' if copy.status=='borrowed' }}>borrowed - 借出</option>
+                    <option value="damaged" {{ 'selected' if copy.status=='damaged' }}>damaged - 损坏</option>
+                    <option value="lost" {{ 'selected' if copy.status=='lost' }}>lost - 丢失</option>
+                </select>
+            </div>
+            {% endif %}
+
+            <button type="submit" class="btn btn-primary">保存</button>
+            <a href="{{ url_for('admin_copies') }}" class="btn btn-secondary">取消</a>
+        </form>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学生管理 - 图书馆</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body style="padding-top:70px">
+    {% include '_nav_admin.html' %}
+
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2>学生管理</h2>
+            <a href="{{ url_for('admin_student_add') }}" class="btn btn-success">+ 添加学生</a>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            {% for message in messages %}
+              <div class="alert alert-info alert-dismissible fade show">{{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        {% if students %}
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-primary">
+                    <tr>
+                        <th>ID</th>
+                        <th>学号</th>
+                        <th>姓名</th>
+                        <th>邮箱</th>
+                        <th>电话</th>
+                        <th>状态</th>
+                        <th>当前借阅</th>
+                        <th>未缴罚款</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in students %}
+                    <tr>
+                        <td>{{ s.id }}</td>
+                        <td>{{ s.student_no }}</td>
+                        <td><strong>{{ s.name }}</strong></td>
+                        <td>{{ s.email or '-' }}</td>
+                        <td>{{ s.phone or '-' }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if s.status == 'active' else 'danger' }}">
+                                {{ '正常' if s.status == 'active' else '停用' }}
+                            </span>
+                        </td>
+                        <td>{{ s.current_borrows }}</td>
+                        <td>¥{{ "%.2f"|format(s.unpaid_fines) }}</td>
+                        <td>
+                            <a href="{{ url_for('admin_student_edit', student_id=s.id) }}" class="btn btn-sm btn-primary">编辑</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-light border">暂无学生数据</div>
+        {% endif %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

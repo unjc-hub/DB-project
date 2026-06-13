@@ -1,0 +1,36 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
+    <div class="container">
+        <a class="navbar-brand" href="{{ url_for('admin_dashboard') }}">🛠️ 管理后台</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navAdmin">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navAdmin">
+            <div class="navbar-nav ms-auto align-items-lg-center">
+                <a href="{{ url_for('admin_dashboard') }}" class="nav-link {{ 'active' if request.endpoint == 'admin_dashboard' }}">首页</a>
+                <a href="{{ url_for('admin_books') }}" class="nav-link {{ 'active' if request.endpoint in ['admin_books','admin_book_add','admin_book_edit'] }}">图书管理</a>
+                {% if session.get('admin_role') == 'superadmin' %}
+                <a href="{{ url_for('admin_students') }}" class="nav-link {{ 'active' if request.endpoint in ['admin_students','admin_student_add','admin_student_edit'] }}">学生管理</a>
+                {% endif %}
+                <a href="{{ url_for('admin_copies') }}" class="nav-link {{ 'active' if request.endpoint in ['admin_copies','admin_copy_add','admin_copy_edit'] }}">馆藏</a>
+                <a href="{{ url_for('admin_borrows') }}" class="nav-link {{ 'active' if request.endpoint == 'admin_borrows' }}">借阅</a>
+                <a href="{{ url_for('admin_reservations') }}" class="nav-link {{ 'active' if request.endpoint == 'admin_reservations' }}">预约</a>
+                <a href="{{ url_for('admin_fines') }}" class="nav-link {{ 'active' if request.endpoint == 'admin_fines' }}">罚款</a>
+                <a href="{{ url_for('admin_notifications') }}" class="nav-link {{ 'active' if request.endpoint == 'admin_notifications' }}">通知</a>
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle {{ 'active' if request.endpoint in ['admin_reports','import_books','import_students'] }}" href="#" data-bs-toggle="dropdown">数据</a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="{{ url_for('admin_reports') }}">📊 数据报表</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ url_for('import_books') }}">📥 导入图书 CSV</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('import_students') }}">📥 导入学生 CSV</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ url_for('export_books') }}">📤 导出图书</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('export_students') }}">📤 导出学生</a></li>
+                    </ul>
+                </div>
+                <a href="{{ url_for('profile') }}" class="nav-link {{ 'active' if request.endpoint == 'profile' }}">个人中心</a>
+                <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm ms-lg-2">退出</a>
+            </div>
+        </div>
+    </div>
+</nav>

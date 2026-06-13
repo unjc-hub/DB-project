@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ book.title }} - 图书详情</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body style="padding-top:70px">
+    {% include '_nav_student.html' %}
+
+    <div class="container mt-4">
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            {% for message in messages %}
+              <div class="alert alert-info alert-dismissible fade show">{{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <div class="row">
+            <div class="col-md-8">
+                <h2>{{ book.title }}</h2>
+                <table class="table table-bordered mt-3">
+                    <tr><th style="width:120px;">ISBN</th><td>{{ book.isbn }}</td></tr>
+                    <tr><th>作者</th><td>{{ ', '.join(book.authors) if book.authors else '未知' }}</td></tr>
+                    <tr><th>出版社</th><td>{{ book.publisher_name or '未知' }}</td></tr>
+                    <tr><th>出版年份</th><td>{{ book.publish_year or '-' }}</td></tr>
+                    <tr><th>分类</th><td>{{ ', '.join(book.categories) if book.categories else '-' }}</td></tr>
+                    <tr><th>描述</th><td>{{ book.description or '暂无描述' }}</td></tr>
+                </table>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">借阅 / 预约</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if available_copies %}
+                            {% if has_reservation and not is_my_reservation %}
+                            <div class="alert alert-warning small">⚠️ 该图书已被 <strong>{{ res_info.res_name }}</strong> 预约（{{ res_info.res_status|rstatus }}），当前不可借阅</div>
+                            {% elif is_my_reservation %}
+                            <div class="alert alert-info small">📌 您的预约已到，请尽快借阅（{{ res_info.res_status|rstatus }}）</div>
+                            {% else %}
+                            <p class="text-success">可借副本：<strong>{{ available_copies|length }}</strong> 册</p>
+                            {% endif %}
+                            <div class="list-group mb-3">
+                                {% for copy in available_copies %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <small>条码: {{ copy.barcode }}</small>
+                                        <br><small>位置: {{ copy.location or '--' }}</small>
+                                    </div>
+                                    {% if has_reservation and not is_my_reservation %}
+                                    <span class="badge bg-secondary">已预约</span>
+                                    {% else %}
+                                    <button class="btn btn-sm btn-success" onclick="confirmBorrow({{ copy.id }}, `{{ copy.barcode }}`)">借阅</button>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% if not is_my_reservation %}
+                            <button class="btn btn-warning w-100" onclick="confirmReserve({{ book.id }}, `{{ book.title }}`)">预约排队</button>
+                            {% endif %}
+                        {% else %}
+                            <p class="text-warning">当前无可借副本</p>
+                            <p>排队预约：<strong>{{ pending_reservations }}</strong> 人</p>
+                            <button class="btn btn-warning w-100" onclick="confirmReserve({{ book.id }}, `{{ book.title }}`)">立即预约</button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 确认借阅弹窗 -->
+    <div class="modal fade" id="confirmBorrowModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header"><h6 class="modal-title">确认借阅</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <p>您即将借阅：<strong id="confirmBookTitle">{{ book.title }}</strong></p>
+                    <p>条码：<code id="confirmBarcode"></code></p>
+                    <div class="alert alert-light small">借期 <strong>60 天</strong>，逾期每天 ¥0.01</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-success btn-sm" id="btnConfirmBorrow">确认借阅</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 确认预约弹窗 -->
+    <div class="modal fade" id="confirmReserveModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header"><h6 class="modal-title">确认预约</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <p>您即将预约：<strong id="reserveBookTitle"></strong></p>
+                    <div class="alert alert-light small">预约生效后将进入排队队列，到书后系统会通知您取书</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-warning btn-sm" id="btnConfirmReserve">确认预约</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    var borrowId = null, reserveId = null;
+
+    function confirmBorrow(copyId, barcode) {
+        borrowId = copyId;
+        document.getElementById('confirmBarcode').textContent = barcode;
+        new bootstrap.Modal(document.getElementById('confirmBorrowModal')).show();
+    }
+
+    function confirmReserve(bookId, title) {
+        reserveId = bookId;
+        document.getElementById('reserveBookTitle').textContent = title;
+        new bootstrap.Modal(document.getElementById('confirmReserveModal')).show();
+    }
+
+    document.getElementById('btnConfirmBorrow').addEventListener('click', function() {
+        if (!borrowId) return;
+        this.disabled = true;
+        this.textContent = '处理中...';
+        fetch('/borrow/' + borrowId, { method: 'POST', credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => r.json())
+        .then(data => {
+            bootstrap.Modal.getInstance(document.getElementById('confirmBorrowModal')).hide();
+            showResult(data.ok, data.ok ? '借阅成功' : '借阅失败: ' + data.error);
+        })
+        .catch(e => {
+            bootstrap.Modal.getInstance(document.getElementById('confirmBorrowModal')).hide();
+            showResult(false, '网络错误: ' + e.message);
+        })
+        .finally(() => { this.disabled = false; this.textContent = '确认借阅'; });
+    });
+
+    document.getElementById('btnConfirmReserve').addEventListener('click', function() {
+        if (!reserveId) return;
+        this.disabled = true;
+        this.textContent = '处理中...';
+        fetch('/reserve/' + reserveId, { method: 'POST', credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => r.json())
+        .then(data => {
+            bootstrap.Modal.getInstance(document.getElementById('confirmReserveModal')).hide();
+            showResult(data.ok, data.ok ? '预约成功' : (data.error || '预约失败'));
+        })
+        .catch(e => {
+            bootstrap.Modal.getInstance(document.getElementById('confirmReserveModal')).hide();
+            showResult(false, '网络错误: ' + e.message);
+        })
+        .finally(() => { this.disabled = false; this.textContent = '确认预约'; });
+    });
+    </script>

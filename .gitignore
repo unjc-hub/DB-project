@@ -1,0 +1,7 @@
+__pycache__/
+.flask_session/
+.vscode/
+*.pyc
+.env
+uploads/avatars/*
+!uploads/avatars/.gitkeep

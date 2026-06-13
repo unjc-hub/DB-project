@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图书馆管理系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: linear-gradient(135deg, #0d6efd 0%, #6610f2 100%); min-height:100vh; }
+        .landing-card { border-radius:20px; border:none; box-shadow:0 10px 40px rgba(0,0,0,0.2); }
+    </style>
+</head>
+<body>
+    <div class="container d-flex align-items-center justify-content-center" style="min-height:100vh">
+        <div class="col-md-5 col-lg-4">
+            <div class="card landing-card text-center p-4">
+                <div class="card-body">
+                    <div class="fs-1 mb-3">📚</div>
+                    <h1 class="mb-2">图书馆管理系统</h1>
+                    <p class="text-muted mb-4">知识在这里触手可及</p>
+                    <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg px-5 rounded-pill">立即登录</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

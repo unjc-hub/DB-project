@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>罚款管理 - 图书馆</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body style="padding-top:70px">
+    {% include '_nav_admin.html' %}
+
+    <div class="container mt-4">
+        <h2 class="mb-3">罚款管理</h2>
+
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            {% for message in messages %}
+              <div class="alert alert-info alert-dismissible fade show py-2">{{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        {% if fines %}
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-primary">
+                    <tr>
+                        <th>ID</th>
+                        <th>学生</th>
+                        <th>学号</th>
+                        <th>图书</th>
+                        <th>金额</th>
+                        <th>状态</th>
+                        <th>日期</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f in fines %}
+                    <tr>
+                        <td>{{ f.id }}</td>
+                        <td>{{ f.student_name }}</td>
+                        <td>{{ f.student_no }}</td>
+                        <td>{{ f.book_title }}</td>
+                        <td><strong class="text-danger">¥{{ "%.2f"|format(f.amount) }}</strong></td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if f.paid else 'danger' }}">
+                                {{ '已缴' if f.paid else '未缴' }}
+                            </span>
+                        </td>
+                        <td>{{ f.created_at }}</td>
+                        <td>
+                            {% if not f.paid %}
+                            <form method="post" action="{{ url_for('admin_fine_pay', fine_id=f.id) }}" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-success">标记已缴</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-light border">暂无罚款记录</div>
+        {% endif %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
